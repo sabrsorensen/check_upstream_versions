@@ -1,0 +1,41 @@
+{
+  "projects": [
+    {
+      "name": "sabrsorensen/sonarr-sma",
+      "type": "github",
+      "branch": "main",
+      "build_workflow_filename": "workflow-build_and_push_image.yml",
+      "upstreams": [
+        {
+          "name": "sonarr_base_image",
+          "type": "docker",
+          "image": "ghcr.io/hotio/sonarr",
+          "tag": "release",
+          "label": "org.opencontainers.image.revision"
+        },
+        {
+          "name": "sickbeard_mp4_automator",
+          "type": "github",
+          "repo": "mdhiggins/sickbeard_mp4_automator",
+          "branch": "master"
+        }
+      ],
+      "downstreams": [
+        {
+          "name": "sonarr_base_image",
+          "type": "docker",
+          "image": "ghcr.io/sabrsorensen/sonarr-sma",
+          "tag": "latest",
+          "label": "base_image_revision"
+        },
+        {
+          "name": "sickbeard_mp4_automator",
+          "type": "docker",
+          "image": "ghcr.io/sabrsorensen/sonarr-sma",
+          "tag": "latest",
+          "label": "sma_revision"
+        }
+      ]
+    }
+  ]
+}
