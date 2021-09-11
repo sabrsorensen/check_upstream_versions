@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"github.com/docker/docker/client"
 
 	"github.com/google/go-github/v39/github"
+
+	"golang.org/x/oauth2"
 )
 
 type DockerStream struct {
@@ -118,9 +119,13 @@ func (image DockerStream) inspectDockerImageLabel() string {
 	cli, err := client.NewClientWithOpts()
 	check(err)
 
+	log.Printf("Pulling image %s\n", imageString)
 	reader, err := cli.ImagePull(ctx, imageString, types.ImagePullOptions{})
 	check(err)
-	io.Copy(os.Stdout, reader)
+	defer reader.Close()
+	_, err = ioutil.ReadAll(reader)
+	check(err)
+	log.Printf("Pulled image %s\n", imageString)
 
 	imageInspect, _, err := cli.ImageInspectWithRaw(ctx, imageString)
 	check(err)
@@ -179,16 +184,22 @@ func main() {
 			projectInfo := strings.Split(project.Name, "/")
 			owner := projectInfo[0]
 			repo := projectInfo[1]
-			client := github.NewClient(nil)
+			ctx := context.Background()
+			ts := oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: os.Getenv("GH_PAT")},
+			)
+			tc := oauth2.NewClient(ctx, ts)
+
+			client := github.NewClient(tc)
 			workflowReq := github.CreateWorkflowDispatchEventRequest{
 				Ref: project.Branch,
 			}
 
-			resp, err := client.Actions.CreateWorkflowDispatchEventByFileName(context.Background(), owner, repo, project.BuildWorkflow, workflowReq)
+			_, err := client.Actions.CreateWorkflowDispatchEventByFileName(context.Background(), owner, repo, project.BuildWorkflow, workflowReq)
 			check(err)
-			log.Print(resp)
+			log.Printf("%s: workflow \"%s\" successfully triggered.", project.Name, project.BuildWorkflow)
 		} else {
-			log.Print("No update needed!")
+			log.Printf("%s: no update needed!", project.Name)
 		}
 	}
 }
